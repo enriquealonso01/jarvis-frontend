@@ -205,7 +205,8 @@ export default function ControlCenterPage() {
       window.clearInterval(vp);
       setImmersive(false);
     };
-  }, [setTitle, setImmersive]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // boot sequence (once per session)
   useEffect(() => {

@@ -591,6 +591,7 @@ export default function App() {
             aria-label={t.app.navigation}
             className={cn(
               "fixed top-0 left-0 z-50 flex h-dvh max-h-dvh w-64 min-h-0 flex-col font-sans",
+              isControlRoute && "hidden", // Control Center is full-bleed (its own hamburger/drawer nav)
               "border-r border-current/20",
               "bg-background-base",
               "transition-[transform] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)]",
