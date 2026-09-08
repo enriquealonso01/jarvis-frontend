@@ -1,0 +1,19 @@
+{
+  "repos": [
+    {"name": "JARVIS Core", "domain": "system", "path": "/usr/local/lib/hermes-agent", "top": "dispatcher", "concepts": ["gateway", "web_routers", "dispatcher"]},
+    {"name": "dispatcher", "domain": "system", "path": "/root/.hermes/jarvis/repos/dispatcher", "top": "queue", "concepts": ["queue", "ledger", "router"], "nodes": 31, "edges": 68},
+    {"name": "whatsapp-reader", "domain": "system", "path": "/root/.hermes/jarvis/repos/whatsapp-personal-read", "top": "baileys", "concepts": ["baileys", "mcp", "daemon"], "nodes": 54, "edges": 120},
+    {"name": "aidp-automation", "domain": "krendora", "top": "ig-poster", "concepts": ["ig-poster", "brand-kit", "scheduler"], "nodes": 180, "edges": 430},
+    {"name": "account-studio", "domain": "krendora", "top": "assets", "concepts": ["assets", "render", "api"], "nodes": 88, "edges": 150},
+    {"name": "tftboxext", "domain": "ticketflipping", "top": "heatmap", "concepts": ["heatmap", "marketplaces", "overlay"], "nodes": 640, "edges": 1520},
+    {"name": "tfteventalerts", "domain": "ticketflipping", "top": "flare", "concepts": ["flare", "alerts", "cron"], "nodes": 300, "edges": 720},
+    {"name": "broker-copilot", "domain": "ticketflipping", "top": "langflow", "concepts": ["langflow", "pos", "chat"], "nodes": 210, "edges": 560},
+    {"name": "tmapi", "domain": "ticketflipping", "top": "scrapers", "concepts": ["scrapers", "selenium", "pipelines"], "nodes": 260, "edges": 610},
+    {"name": "home-budget", "domain": "personal", "top": "supabase", "concepts": ["supabase", "categorize", "budget"], "nodes": 70, "edges": 140},
+    {"name": "home-finances", "domain": "personal", "top": "ledger", "concepts": ["ledger", "recon", "reports"], "nodes": 64, "edges": 120},
+    {"name": "HeRoseFromDeath", "domain": "personal", "top": "app", "concepts": ["app", "content", "api"], "nodes": 120, "edges": 240},
+    {"name": "enriquecodes", "domain": "personal", "top": "portfolio", "concepts": ["portfolio", "site", "blog"], "nodes": 90, "edges": 160},
+    {"name": "offer", "domain": "personal", "top": "landing", "concepts": ["landing", "form", "copy"], "nodes": 40, "edges": 70},
+    {"name": "tongeMaster", "domain": "personal", "top": "trainer", "concepts": ["trainer", "audio", "quiz"], "nodes": 55, "edges": 95}
+  ]
+}

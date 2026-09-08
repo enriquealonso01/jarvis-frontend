@@ -1,0 +1,16 @@
+JARVIS frontend
+===============
+
+This repository is a downstream customization ("JARVIS") of the Hermes Agent
+dashboard by Nous Research (https://github.com/NousResearch/hermes-agent),
+used under the MIT License (see LICENSE). Original code © 2025 Nous Research.
+
+It contains the JARVIS-specific frontend (the `web/` React app + its
+`apps/shared` build dependency) and the backend touchpoints that power the
+JARVIS Control Center and its auth/serving layer, extracted from a working
+hermes-agent checkout at upstream commit 63279301.
+
+JARVIS customizations © 2026 Enrique Alonso. The bulk of the Hermes Agent
+Python backend (agent core, providers, skills, etc.) is NOT vendored here —
+only the frontend and its serving/API touchpoints — and continues to run from
+the upstream hermes-agent install on the box.

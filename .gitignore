@@ -1,0 +1,15 @@
+node_modules/
+dist/
+web_dist/
+*.bak
+*.bak-*
+__pycache__/
+*.pyc
+.env
+.env.*
+*.pem
+*.key
+*credentials*
+*secret*
+.DS_Store
+.vite/
