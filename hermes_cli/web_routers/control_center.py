@@ -1368,6 +1368,58 @@ async def control_automations():
     return _automations()
 
 
+def _voice_transcripts(limit_turns: int = 16) -> Dict[str, Any]:
+    """Recent turns from the newest real voice conversation. ``work-*`` task
+    chats are excluded (those live in the Current Work chat). Read-only."""
+    cached = _cached("voice_transcripts")
+    if cached is not None:
+        return cached
+    out: Dict[str, Any] = {"available": False, "conversation_id": None, "updated_ts": None, "turns": []}
+    try:
+        files = sorted(
+            (f for f in _VOICE_DISK_DIR.glob("*.jsonl") if not f.stem.startswith("work-")),
+            key=lambda pth: pth.stat().st_mtime,
+            reverse=True,
+        )
+    except Exception:  # noqa: BLE001
+        return _set_cached("voice_transcripts", out, 5.0)
+    if not files:
+        return _set_cached("voice_transcripts", out, 5.0)
+    chosen = files[0]
+    turns: List[Dict[str, Any]] = []
+    try:
+        with chosen.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except ValueError:
+                    continue
+                if rec.get("role") in ("user", "assistant") and rec.get("text"):
+                    txt = " ".join(str(rec["text"]).split())
+                    if len(txt) > 500:
+                        txt = txt[:499].rstrip() + "…"
+                    turns.append({"role": rec["role"], "text": txt, "ts": rec.get("ts")})
+    except OSError:
+        return _set_cached("voice_transcripts", out, 5.0)
+    try:
+        mtime: Optional[float] = chosen.stat().st_mtime
+    except OSError:
+        mtime = None
+    out["available"] = bool(turns)
+    out["conversation_id"] = chosen.stem
+    out["updated_ts"] = mtime
+    out["turns"] = turns[-limit_turns:]
+    return _set_cached("voice_transcripts", out, 5.0)
+
+
+@router.get("/api/control/voice/transcripts")
+async def control_voice_transcripts():
+    return _voice_transcripts()
+
+
 def _attention_alerts() -> Dict[str, Any]:
     """Alerts JARVIS surfaces: failed delegations + waiting sessions + failing automations."""
     alerts: List[Dict[str, Any]] = []

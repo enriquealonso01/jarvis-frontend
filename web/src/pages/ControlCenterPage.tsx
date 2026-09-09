@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
+  AudioLines,
   Bell,
   Bot,
   CalendarClock,
@@ -28,6 +29,7 @@ import {
   type ControlKnowledgeGraphResponse,
   type ControlSpendResponse,
   type ControlVitalsResponse,
+  type ControlVoiceTranscriptsResponse,
   type ControlZaiUsageResponse,
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -129,6 +131,7 @@ type LoadState = {
   automations: ControlAutomationsResponse | null;
   attention: ControlAttentionResponse | null;
   graph: ControlKnowledgeGraphResponse | null;
+  voice: ControlVoiceTranscriptsResponse | null;
 };
 
 export default function ControlCenterPage() {
@@ -143,6 +146,7 @@ export default function ControlCenterPage() {
     automations: null,
     attention: null,
     graph: null,
+    voice: null,
   });
   const [mode, setMode] = useState<"map" | "voice">("map");
   const [activeDom, setActiveDom] = useState("all");
@@ -164,7 +168,7 @@ export default function ControlCenterPage() {
   const sparkRef = useRef<HTMLCanvasElement | null>(null);
 
   const load = async () => {
-    const [status, model, spend, activity, zai, vitals, automations, attention, graph] =
+    const [status, model, spend, activity, zai, vitals, automations, attention, graph, voice] =
       await Promise.allSettled([
         api.getStatus(),
         api.getModelInfo(),
@@ -175,6 +179,7 @@ export default function ControlCenterPage() {
         api.getControlAutomations(),
         api.getControlAttention(),
         api.getControlKnowledgeGraph(),
+        api.getControlVoiceTranscripts(),
       ]);
     const val = (r: PromiseSettledResult<any>) => (r.status === "fulfilled" ? r.value : null);
     setD({
@@ -187,6 +192,7 @@ export default function ControlCenterPage() {
       automations: val(automations),
       attention: val(attention),
       graph: val(graph),
+      voice: val(voice),
     });
     lastSync.current = Date.now();
     autosAt.current = Date.now();
@@ -338,6 +344,7 @@ export default function ControlCenterPage() {
   const alerts: ControlAttentionAlert[] = d.attention?.alerts ?? [];
   const critCount = d.attention?.critical ?? 0;
   const autos: ControlAutomation[] = d.automations?.items ?? [];
+  const voiceTurns = d.voice?.available ? d.voice.turns : [];
   const gatewayRunning = Boolean(d.status?.gateway_running);
   const liveCount = filteredTasks.filter((t) => t.state === "running").length;
   const modelName = d.model?.model ?? d.model?.name ?? d.status?.model ?? "glm-5.3-flash";
@@ -665,6 +672,30 @@ export default function ControlCenterPage() {
           </div>
         </section>
       </div>
+
+      {/* Voice transcripts — right of the automations block */}
+      <section className="voicefeed glass">
+        <div className="vf-h">
+          <h3>
+            <AudioLines className="ico" size={14} /> Voice transcript
+          </h3>
+          <span className={cn("pill", voiceTurns.length ? "ok" : "")}>
+            <span className="d" />
+            {voiceTurns.length ? "latest" : "idle"}
+          </span>
+        </div>
+        <div className="vf-scroll">
+          {voiceTurns.map((tn, i) => (
+            <div className={cn("vf-turn", tn.role === "assistant" ? "j" : "u")} key={i}>
+              <div className="vf-who">{tn.role === "assistant" ? "JARVIS" : "You"}</div>
+              <div className="vf-text">{tn.text}</div>
+            </div>
+          ))}
+          {voiceTurns.length === 0 && (
+            <div className="vf-empty">No recent voice conversation. Tap the orb and speak.</div>
+          )}
+        </div>
+      </section>
 
       {/* Current Work */}
       <section className="panel-right glass">

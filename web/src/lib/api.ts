@@ -379,6 +379,8 @@ export const api = {
     fetchJSON<ControlWorkHistoryResponse>(
       `/api/control/work/${encodeURIComponent(id)}/history`,
     ),
+  getControlVoiceTranscripts: () =>
+    fetchJSON<ControlVoiceTranscriptsResponse>("/api/control/voice/transcripts"),
   getPcBridgeStatus: () =>
     fetchJSON<PcBridgeStatus>("/api/control/bridge/status"),
   /**
@@ -2158,6 +2160,19 @@ export interface ControlWorkHistoryResponse {
   session_id: string | null;
   messages: ControlWorkHistoryMessage[];
   total?: number;
+}
+
+export interface ControlVoiceTranscriptTurn {
+  role: "user" | "assistant";
+  text: string;
+  ts?: number | null;
+}
+
+export interface ControlVoiceTranscriptsResponse {
+  available: boolean;
+  conversation_id: string | null;
+  updated_ts: number | null;
+  turns: ControlVoiceTranscriptTurn[];
 }
 
 export interface StatusResponse {
