@@ -59,8 +59,24 @@ function pickRecorderMime(): string {
   return "";
 }
 
-export function VoiceConsole({ gatewayRunning, workCount }: { gatewayRunning: boolean; workCount: number }) {
+export function VoiceConsole({
+  gatewayRunning,
+  workCount,
+  bare = false,
+  context = null,
+  onClearContext,
+}: {
+  gatewayRunning: boolean;
+  workCount: number;
+  /** Hide the dashboard chrome (gateway pill + over-orb transcript) so the orb floats clean. */
+  bare?: boolean;
+  /** A project selected on the map — prepended to what you say so voice references it. */
+  context?: string | null;
+  onClearContext?: () => void;
+}) {
   const [phase, setPhase] = useState<Phase>("idle");
+  const contextRef = useRef<string | null>(context);
+  contextRef.current = context;
   const [researching, setResearching] = useState(false);
   const [interim, setInterim] = useState("");
   const [lines, setLines] = useState<Line[]>([]);
@@ -279,10 +295,13 @@ export function VoiceConsole({ gatewayRunning, workCount }: { gatewayRunning: bo
   type ConverseResult = { reply: string; conversation_id: string; source?: string; pending_id?: string };
 
   const converse = useCallback(async (text: string): Promise<ConverseResult> => {
+    // If a project is selected on the map, reference it so voice is scoped to it.
+    const ctx = contextRef.current;
+    const msg = ctx ? `[Regarding the project "${ctx}"] ${text}` : text;
     const res = await fetchJSON<ConverseResult>("/api/control/voice/converse", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, conversation_id: conversationIdRef.current }),
+      body: JSON.stringify({ text: msg, conversation_id: conversationIdRef.current }),
     });
     if (res?.conversation_id) conversationIdRef.current = res.conversation_id;
     return res;
@@ -746,16 +765,70 @@ export function VoiceConsole({ gatewayRunning, workCount }: { gatewayRunning: bo
         >
           {statusText}
         </div>
-        {/* Gateway / sessions pill */}
-        <div className="absolute bottom-[6%] left-1/2 z-10 -translate-x-1/2 rounded-full border border-border/45 bg-background/70 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-muted-foreground backdrop-blur max-sm:hidden">
-          {gatewayRunning ? "gateway online" : "gateway offline"} · {workCount} sessions
-          {!ttsReady && " · voice output off"}
-          {ttsReady && muted && " · muted"}
-        </div>
+        {/* Gateway / sessions pill (full chrome only) */}
+        {!bare && (
+          <div className="absolute bottom-[6%] left-1/2 z-10 -translate-x-1/2 rounded-full border border-border/45 bg-background/70 px-3 py-1 text-[10px] uppercase tracking-[0.22em] text-muted-foreground backdrop-blur max-sm:hidden">
+            {gatewayRunning ? "gateway online" : "gateway offline"} · {workCount} sessions
+            {!ttsReady && " · voice output off"}
+            {ttsReady && muted && " · muted"}
+          </div>
+        )}
+
+        {/* Bare mode: project-context chip (references the clicked map project) */}
+        {bare && context && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClearContext?.();
+            }}
+            title="Stop referencing this project"
+            className="pointer-events-auto absolute left-1/2 top-[1%] z-20 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-cyan-300/40 bg-[#02090c]/70 px-3 py-1 text-[10px] font-medium tracking-[0.1em] text-cyan-200 backdrop-blur transition hover:border-cyan-200/70"
+          >
+            <Radar className="h-3 w-3" />
+            {context}
+            <X className="h-3 w-3 opacity-70" />
+          </button>
+        )}
+        {/* Bare mode: minimal controls (mute + end) */}
+        {bare && (
+          <div className="absolute right-[4%] top-[3%] z-20 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMuted((m) => !m);
+              }}
+              aria-label={muted ? "Unmute JARVIS voice" : "Mute JARVIS voice"}
+              title={muted ? "Voice output off — tap to unmute" : "Mute voice (text only)"}
+              className={cn(
+                "pointer-events-auto rounded-md p-1 outline-none transition",
+                muted ? "text-amber-300 hover:text-amber-200" : "text-muted-foreground hover:text-cyan-200",
+              )}
+            >
+              {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
+            </button>
+            {(active || lines.length > 0) && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  endAndClear();
+                }}
+                aria-label="End and clear conversation"
+                title="End & clear"
+                className="pointer-events-auto rounded-md p-1 text-muted-foreground outline-none transition hover:text-rose-300"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Floating live-transcript panel — small, to the side of the mic */}
-      {showTranscript && (
+      {/* Floating live-transcript panel — full chrome only (bare mode uses the
+          dedicated, toggleable Voice-transcript panel instead) */}
+      {!bare && showTranscript && (
         <div className="absolute inset-x-2 bottom-2 z-20 flex max-h-[46%] flex-col rounded-2xl border border-cyan-300/20 bg-background/85 shadow-[0_0_40px_rgba(34,211,238,0.10)] backdrop-blur sm:inset-x-auto sm:bottom-auto sm:right-3 sm:top-3 sm:w-60 lg:max-h-[62%] lg:w-60">
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/40 px-3 py-1.5">
             <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">

@@ -290,23 +290,13 @@ export function KnowledgeMap(props: KnowledgeMapProps) {
       }
       return best;
     }
-    function conceptsFor(r: MapRepo): string[] {
-      if (r.concepts && r.concepts.length) return r.concepts;
-      return [r.top || "core"];
-    }
     function openDetail(n: Node) {
+      // Keep the node pinned (for the selection highlight), but the React layer
+      // renders the project action popover — so we don't draw the canvas card.
       pinned = n;
       const r = n.repo!;
       maptip.style.opacity = "0";
-      nodedetail.innerHTML =
-        `<div class="t"><span class="c" style="background:${n.col}"></span>${r.name}</div>` +
-        `<div class="row"><span>nodes</span><span>${r.nodes}</span></div>` +
-        `<div class="row"><span>edges</span><span>${r.edges}</span></div>` +
-        `<div class="row"><span>god node</span><span style="color:${n.col}">${r.top || "—"}</span></div>` +
-        `<div class="lbl">Key concepts</div><div class="concepts">${conceptsFor(r)
-          .map((c) => `<span class="cc-pill">${c}</span>`)
-          .join("")}</div>`;
-      nodedetail.hidden = false;
+      nodedetail.hidden = true;
       p.current.onOpenRepo(r);
     }
     function closeDetail() {

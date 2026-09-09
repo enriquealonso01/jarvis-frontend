@@ -381,6 +381,12 @@ export const api = {
     ),
   getControlVoiceTranscripts: () =>
     fetchJSON<ControlVoiceTranscriptsResponse>("/api/control/voice/transcripts"),
+  postControlProjectTask: (project: string, text: string) =>
+    fetchJSON<ControlWorkChatResponse>("/api/control/project/task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project, text }),
+    }),
   getPcBridgeStatus: () =>
     fetchJSON<PcBridgeStatus>("/api/control/bridge/status"),
   /**

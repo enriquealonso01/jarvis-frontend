@@ -164,6 +164,15 @@ export default function ControlCenterPage() {
   const [chatBusy, setChatBusy] = useState(false);
   const [histLoading, setHistLoading] = useState(false);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  // Voice transcript panel is closed until opened.
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
+  // A project selected on the map — referenced by the voice orb.
+  const [voiceRef, setVoiceRef] = useState<string | null>(null);
+  // Project action popover (click a project node on the map).
+  const [projPop, setProjPop] = useState<MapRepo | null>(null);
+  const [projTask, setProjTask] = useState("");
+  const [projBusy, setProjBusy] = useState(false);
+  const [projMsg, setProjMsg] = useState<string | null>(null);
   const cpuHist = useRef<number[]>([]);
   const sparkRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -421,6 +430,28 @@ export default function ControlCenterPage() {
     }
   }
 
+  function referenceInVoice(name: string) {
+    setVoiceRef(name);
+    setProjPop(null);
+    setProjMsg(null);
+  }
+  async function sendProjectTask() {
+    const v = projTask.trim();
+    if (!v || !projPop || projBusy) return;
+    setProjBusy(true);
+    setProjMsg(null);
+    const name = projPop.name;
+    try {
+      const res = await api.postControlProjectTask(name, v);
+      setProjMsg(res.reply || "Task started.");
+      setProjTask("");
+    } catch {
+      setProjMsg("Couldn't reach JARVIS just now — try again in a moment.");
+    } finally {
+      setProjBusy(false);
+    }
+  }
+
   const kindIcon = (k: string) =>
     k === "agent" ? <Bot className="kd" /> : k === "voice" ? <Mic className="kd" /> : <SquareTerminal className="kd" />;
 
@@ -438,7 +469,11 @@ export default function ControlCenterPage() {
         hoverDom={hoverDom}
         repoActivity={repoActivity}
         onHubClick={(dom) => setActiveDom((cur) => (cur === dom ? "all" : dom))}
-        onOpenRepo={() => {}}
+        onOpenRepo={(r) => {
+          setProjPop(r);
+          setProjMsg(null);
+          setProjTask("");
+        }}
       />
 
       {/* Decorative centre node — the heart of the knowledge map. Pure UI, no
@@ -481,6 +516,14 @@ export default function ControlCenterPage() {
           <span className="d" />
           Desktop
         </span>
+        <button
+          className={cn("iconbtn", transcriptOpen && "on")}
+          title="Voice transcript"
+          aria-label="Voice transcript"
+          onClick={() => setTranscriptOpen((o) => !o)}
+        >
+          <AudioLines size={15} />
+        </button>
         <button
           className={cn("iconbtn alertbtn", critCount > 0 && "crit has")}
           title="Attention"
@@ -663,29 +706,30 @@ export default function ControlCenterPage() {
         </section>
       </div>
 
-      {/* Voice transcripts — right of the automations block */}
-      <section className="voicefeed glass">
-        <div className="vf-h">
-          <h3>
-            <AudioLines className="ico" size={14} /> Voice transcript
-          </h3>
-          <span className={cn("pill", voiceTurns.length ? "ok" : "")}>
-            <span className="d" />
-            {voiceTurns.length ? "latest" : "idle"}
-          </span>
-        </div>
-        <div className="vf-scroll">
-          {voiceTurns.map((tn, i) => (
-            <div className={cn("vf-turn", tn.role === "assistant" ? "j" : "u")} key={i}>
-              <div className="vf-who">{tn.role === "assistant" ? "JARVIS" : "You"}</div>
-              <div className="vf-text">{tn.text}</div>
-            </div>
-          ))}
-          {voiceTurns.length === 0 && (
-            <div className="vf-empty">No recent voice conversation. Tap the orb and speak.</div>
-          )}
-        </div>
-      </section>
+      {/* Voice transcript — closed until opened from the top bar */}
+      {transcriptOpen && (
+        <section className="voicefeed glass">
+          <div className="vf-h">
+            <h3>
+              <AudioLines className="ico" size={14} /> Voice transcript
+            </h3>
+            <button className="iconbtn" aria-label="Close transcript" onClick={() => setTranscriptOpen(false)}>
+              <X size={14} />
+            </button>
+          </div>
+          <div className="vf-scroll">
+            {voiceTurns.map((tn, i) => (
+              <div className={cn("vf-turn", tn.role === "assistant" ? "j" : "u")} key={i}>
+                <div className="vf-who">{tn.role === "assistant" ? "JARVIS" : "You"}</div>
+                <div className="vf-text">{tn.text}</div>
+              </div>
+            ))}
+            {voiceTurns.length === 0 && (
+              <div className="vf-empty">No recent voice conversation. Tap the orb and speak.</div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Current Work */}
       <section className="panel-right glass">
@@ -753,10 +797,16 @@ export default function ControlCenterPage() {
         </div>
       </section>
 
-      {/* Voice dock — the talking orb, under Current Work (bottom-right) */}
-      <section className="voicedock glass">
-        <VoiceConsole gatewayRunning={gatewayRunning} workCount={liveCount} />
-      </section>
+      {/* Voice dock — the talking orb floats free (no container) at the bottom-right */}
+      <div className="voicedock">
+        <VoiceConsole
+          gatewayRunning={gatewayRunning}
+          workCount={liveCount}
+          bare
+          context={voiceRef}
+          onClearContext={() => setVoiceRef(null)}
+        />
+      </div>
 
       {/* Current Work hover tooltip */}
       {wt && (
@@ -913,6 +963,46 @@ export default function ControlCenterPage() {
             </button>
           </div>
         </section>
+      )}
+
+      {/* Project action popover — click a project on the map */}
+      {projPop && (
+        <div className="projpop glass">
+          <div className="pp-h">
+            <span className="pp-dot" style={{ background: DCOLOR[projPop.domain] || "var(--fg)" }} />
+            <div className="pp-tt">
+              <div className="pp-name">{projPop.name}</div>
+              <div className="pp-sub">
+                {projPop.domain} · {projPop.nodes.toLocaleString()} nodes · {projPop.top || "core"}
+              </div>
+            </div>
+            <button className="iconbtn" aria-label="Close" onClick={() => setProjPop(null)}>
+              <X size={14} />
+            </button>
+          </div>
+          <button className="pp-ref" onClick={() => referenceInVoice(projPop.name)}>
+            <Mic size={13} /> Reference in voice
+          </button>
+          <div className="pp-task">
+            <textarea
+              rows={2}
+              placeholder={`Start a task on ${projPop.name}…`}
+              value={projTask}
+              onChange={(e) => setProjTask(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendProjectTask();
+                }
+              }}
+            />
+            <button className="pp-send" aria-label="Start task" onClick={sendProjectTask} disabled={projBusy}>
+              <Send size={15} />
+            </button>
+          </div>
+          {projBusy && <div className="pp-msg">Handing it to JARVIS…</div>}
+          {!projBusy && projMsg && <div className="pp-msg">{projMsg}</div>}
+        </div>
       )}
 
       {/* Boot */}

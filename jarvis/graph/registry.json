@@ -1,19 +1,301 @@
 {
-  "repos": [
-    {"name": "JARVIS Core", "domain": "system", "path": "/usr/local/lib/hermes-agent", "top": "dispatcher", "concepts": ["gateway", "web_routers", "dispatcher"]},
-    {"name": "dispatcher", "domain": "system", "path": "/root/.hermes/jarvis/repos/dispatcher", "top": "queue", "concepts": ["queue", "ledger", "router"], "nodes": 31, "edges": 68},
-    {"name": "whatsapp-reader", "domain": "system", "path": "/root/.hermes/jarvis/repos/whatsapp-personal-read", "top": "baileys", "concepts": ["baileys", "mcp", "daemon"], "nodes": 54, "edges": 120},
-    {"name": "aidp-automation", "domain": "krendora", "top": "ig-poster", "concepts": ["ig-poster", "brand-kit", "scheduler"], "nodes": 180, "edges": 430},
-    {"name": "account-studio", "domain": "krendora", "top": "assets", "concepts": ["assets", "render", "api"], "nodes": 88, "edges": 150},
-    {"name": "tftboxext", "domain": "ticketflipping", "top": "heatmap", "concepts": ["heatmap", "marketplaces", "overlay"], "nodes": 640, "edges": 1520},
-    {"name": "tfteventalerts", "domain": "ticketflipping", "top": "flare", "concepts": ["flare", "alerts", "cron"], "nodes": 300, "edges": 720},
-    {"name": "broker-copilot", "domain": "ticketflipping", "top": "langflow", "concepts": ["langflow", "pos", "chat"], "nodes": 210, "edges": 560},
-    {"name": "tmapi", "domain": "ticketflipping", "top": "scrapers", "concepts": ["scrapers", "selenium", "pipelines"], "nodes": 260, "edges": 610},
-    {"name": "home-budget", "domain": "personal", "top": "supabase", "concepts": ["supabase", "categorize", "budget"], "nodes": 70, "edges": 140},
-    {"name": "home-finances", "domain": "personal", "top": "ledger", "concepts": ["ledger", "recon", "reports"], "nodes": 64, "edges": 120},
-    {"name": "HeRoseFromDeath", "domain": "personal", "top": "app", "concepts": ["app", "content", "api"], "nodes": 120, "edges": 240},
-    {"name": "enriquecodes", "domain": "personal", "top": "portfolio", "concepts": ["portfolio", "site", "blog"], "nodes": 90, "edges": 160},
-    {"name": "offer", "domain": "personal", "top": "landing", "concepts": ["landing", "form", "copy"], "nodes": 40, "edges": 70},
-    {"name": "tongeMaster", "domain": "personal", "top": "trainer", "concepts": ["trainer", "audio", "quiz"], "nodes": 55, "edges": 95}
-  ]
+ "repos": [
+  {
+   "name": "JARVIS Core",
+   "domain": "system",
+   "path": "/usr/local/lib/hermes-agent",
+   "top": "dispatcher",
+   "concepts": [
+    "gateway",
+    "web_routers",
+    "dispatcher"
+   ]
+  },
+  {
+   "name": "dispatcher",
+   "domain": "system",
+   "path": null,
+   "top": "queue",
+   "concepts": [
+    "queue",
+    "ledger",
+    "router"
+   ],
+   "nodes": 31,
+   "edges": 73
+  },
+  {
+   "name": "whatsapp-reader",
+   "domain": "system",
+   "path": null,
+   "top": "baileys",
+   "concepts": [
+    "baileys",
+    "mcp",
+    "daemon"
+   ],
+   "nodes": 54,
+   "edges": 127
+  },
+  {
+   "name": "jarvis-frontend",
+   "domain": "system",
+   "path": null,
+   "top": "control-center",
+   "concepts": [
+    "react",
+    "vite",
+    "dashboard"
+   ],
+   "nodes": 210,
+   "edges": 494
+  },
+  {
+   "name": "AIDP",
+   "domain": "krendora",
+   "path": null,
+   "top": "ig-poster",
+   "concepts": [
+    "instagram",
+    "autods",
+    "pipeline"
+   ],
+   "nodes": 420,
+   "edges": 987
+  },
+  {
+   "name": "account-studio",
+   "domain": "krendora",
+   "path": null,
+   "top": "assets",
+   "concepts": [
+    "assets",
+    "accounts",
+    "studio"
+   ],
+   "nodes": 150,
+   "edges": 352
+  },
+  {
+   "name": "aidp-sync",
+   "domain": "krendora",
+   "path": null,
+   "top": "sync",
+   "concepts": [
+    "sync",
+    "price",
+    "catalog"
+   ],
+   "nodes": 96,
+   "edges": 226
+  },
+  {
+   "name": "SocialControlHub",
+   "domain": "krendora",
+   "path": null,
+   "top": "hub",
+   "concepts": [
+    "social",
+    "scheduler",
+    "hub"
+   ],
+   "nodes": 180,
+   "edges": 423
+  },
+  {
+   "name": "tftboxext",
+   "domain": "ticketflipping",
+   "path": null,
+   "top": "heatmap",
+   "concepts": [
+    "heatmap",
+    "overlay",
+    "markets"
+   ],
+   "nodes": 640,
+   "edges": 1504
+  },
+  {
+   "name": "tfteventalerts",
+   "domain": "ticketflipping",
+   "path": null,
+   "top": "flare",
+   "concepts": [
+    "flare",
+    "alerts",
+    "django"
+   ],
+   "nodes": 300,
+   "edges": 705
+  },
+  {
+   "name": "broker-copilot",
+   "domain": "ticketflipping",
+   "path": null,
+   "top": "langflow",
+   "concepts": [
+    "langflow",
+    "chat",
+    "pos"
+   ],
+   "nodes": 210,
+   "edges": 494
+  },
+  {
+   "name": "broker-copilot-prompts",
+   "domain": "ticketflipping",
+   "path": null,
+   "top": "prompts",
+   "concepts": [
+    "prompts",
+    "tiers",
+    "identity"
+   ],
+   "nodes": 70,
+   "edges": 164
+  },
+  {
+   "name": "tmapi",
+   "domain": "ticketflipping",
+   "path": null,
+   "top": "scrapers",
+   "concepts": [
+    "selenium",
+    "scrapers",
+    "pipeline"
+   ],
+   "nodes": 260,
+   "edges": 611
+  },
+  {
+   "name": "iOS-BrokerCopilot",
+   "domain": "ticketflipping",
+   "path": null,
+   "top": "app",
+   "concepts": [
+    "swift",
+    "ios",
+    "copilot"
+   ],
+   "nodes": 130,
+   "edges": 306
+  },
+  {
+   "name": "home-budget",
+   "domain": "personal",
+   "path": null,
+   "top": "supabase",
+   "concepts": [
+    "supabase",
+    "budget",
+    "categorize"
+   ],
+   "nodes": 120,
+   "edges": 282
+  },
+  {
+   "name": "home-finances",
+   "domain": "personal",
+   "path": null,
+   "top": "ledger",
+   "concepts": [
+    "ledger",
+    "finance",
+    "reconcile"
+   ],
+   "nodes": 96,
+   "edges": 226
+  },
+  {
+   "name": "HeRoseFromDeath",
+   "domain": "personal",
+   "path": null,
+   "top": "app",
+   "concepts": [
+    "app",
+    "faith",
+    "content"
+   ],
+   "nodes": 120,
+   "edges": 282
+  },
+  {
+   "name": "enriquecodes",
+   "domain": "personal",
+   "path": null,
+   "top": "portfolio",
+   "concepts": [
+    "portfolio",
+    "astro",
+    "site"
+   ],
+   "nodes": 90,
+   "edges": 212
+  },
+  {
+   "name": "offer",
+   "domain": "personal",
+   "path": null,
+   "top": "landing",
+   "concepts": [
+    "landing",
+    "offer",
+    "funnel"
+   ],
+   "nodes": 46,
+   "edges": 108
+  },
+  {
+   "name": "tongeMaster",
+   "domain": "personal",
+   "path": null,
+   "top": "trainer",
+   "concepts": [
+    "trainer",
+    "audio",
+    "practice"
+   ],
+   "nodes": 55,
+   "edges": 129
+  },
+  {
+   "name": "PSConsulting",
+   "domain": "personal",
+   "path": null,
+   "top": "site",
+   "concepts": [
+    "consulting",
+    "site",
+    "leads"
+   ],
+   "nodes": 64,
+   "edges": 150
+  },
+  {
+   "name": "businessBuy",
+   "domain": "personal",
+   "path": null,
+   "top": "research",
+   "concepts": [
+    "acquisition",
+    "research",
+    "deals"
+   ],
+   "nodes": 72,
+   "edges": 169
+  },
+  {
+   "name": "reconciler-pro",
+   "domain": "personal",
+   "path": null,
+   "top": "reconcile",
+   "concepts": [
+    "reconcile",
+    "lysted",
+    "pos"
+   ],
+   "nodes": 88,
+   "edges": 207
+  }
+ ]
 }

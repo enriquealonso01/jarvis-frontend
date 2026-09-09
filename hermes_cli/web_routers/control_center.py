@@ -1025,7 +1025,7 @@ def _recent_activity() -> Dict[str, Any]:
                 ORDER BY COALESCE(
                     (SELECT MAX(timestamp) FROM messages m WHERE m.session_id = sessions.id),
                     last_activity_at, started_at) DESC
-                LIMIT 8
+                LIMIT 40
                 """
             ).fetchall()
             for r in rows:
@@ -2532,3 +2532,29 @@ def _work_history(work_id: str) -> Dict[str, Any]:
 @router.get("/api/control/work/{work_id}/history")
 async def control_work_history(work_id: str):
     return await run_in_threadpool(_work_history, work_id)
+
+
+@router.post("/api/control/project/task")
+async def control_project_task(payload: Dict[str, Any] = Body(...)):
+    """Start a task on a project from the knowledge map: hand JARVIS an
+    instruction scoped to the project. JARVIS acts or kicks off the work and
+    returns a short reply. Keeps a per-project thread (``project-<name>``)."""
+    project = str(payload.get("project") or "").strip()
+    text = str(payload.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="empty task")
+    ctx = ""
+    if project:
+        ctx = (
+            f'[New task for the project "{project}", opened from the Control Center map. '
+            f"Take the action or kick off the work (delegate if it is heavy); reply briefly.]\n"
+        )
+    slug = _re.sub(r"[^A-Za-z0-9_-]", "", project)[:48] or "adhoc"
+    conv = "project-" + slug
+    try:
+        result = await run_in_threadpool(_run_jarvis_turn, ctx + text, conv)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {"reply": result.get("reply") or result.get("text") or ""}
