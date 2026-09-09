@@ -369,7 +369,11 @@ export const api = {
   postControlWorkChat: (id: string, text: string) =>
     fetchJSON<ControlWorkChatResponse>(
       `/api/control/work/${encodeURIComponent(id)}/chat`,
-      { method: "POST", body: JSON.stringify({ text }) },
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      },
     ),
   getPcBridgeStatus: () =>
     fetchJSON<PcBridgeStatus>("/api/control/bridge/status"),

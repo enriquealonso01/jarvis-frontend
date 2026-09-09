@@ -146,8 +146,11 @@ export default function ControlCenterPage() {
   const [, setTick] = useState(0);
   const lastSync = useRef(Date.now());
   const [selTask, setSelTask] = useState<Task | null>(null);
+  const [wt, setWt] = useState<{ task: Task; x: number; y: number } | null>(null);
+  const autosAt = useRef(Date.now());
   const [chat, setChat] = useState<{ r: "a" | "you"; text: string }[]>([]);
   const [chatInput, setChatInput] = useState("");
+  const [chatBusy, setChatBusy] = useState(false);
   const cpuHist = useRef<number[]>([]);
   const sparkRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -177,6 +180,7 @@ export default function ControlCenterPage() {
       graph: val(graph),
     });
     lastSync.current = Date.now();
+    autosAt.current = Date.now();
   };
 
   useEffect(() => {
@@ -338,17 +342,19 @@ export default function ControlCenterPage() {
   // ---- keyboard shortcuts ----
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Escape always dismisses overlays, even from within an input/textarea.
+      if (e.key === "Escape") {
+        setAlertsOpen(false);
+        setSelTask(null);
+        setDrawerOpen(false);
+        return;
+      }
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === "v") setMode("voice");
       else if (k === "m") setMode("map");
       else if (k === "a") setAlertsOpen((o) => !o);
-      else if (e.key === "Escape") {
-        setAlertsOpen(false);
-        setSelTask(null);
-        setDrawerOpen(false);
-      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -362,15 +368,18 @@ export default function ControlCenterPage() {
   }
   async function sendChat() {
     const v = chatInput.trim();
-    if (!v || !selTask) return;
+    if (!v || !selTask || chatBusy) return;
     setChat((c) => [...c, { r: "you", text: v }]);
     setChatInput("");
+    setChatBusy(true);
     const task = selTask;
     try {
       const res = await api.postControlWorkChat(task.id, v);
       setChat((c) => [...c, { r: "a", text: res.reply || "…" }]);
     } catch {
-      setChat((c) => [...c, { r: "a", text: "I couldn't reach that thread just now — try again in a moment." }]);
+      setChat((c) => [...c, { r: "a", text: "I couldn't reach that thread — try again in a moment." }]);
+    } finally {
+      setChatBusy(false);
     }
   }
 
@@ -508,7 +517,7 @@ export default function ControlCenterPage() {
               <div className="cap" key={w.key}>
                 <div className="lab">
                   <span style={{ textTransform: "capitalize" }}>{w.label}</span>
-                  <span className="tnum">{resetLabel(w.reset_in_seconds ?? 0)}</span>
+                  <span className="tnum">{resetLabel((w.reset_in_seconds ?? 0) - (Date.now() - lastSync.current) / 1000)}</span>
                 </div>
                 <div className="bar">
                   <i style={{ width: `${Math.max(2, pct)}%`, background: col }} />
@@ -601,8 +610,10 @@ export default function ControlCenterPage() {
           </div>
           <div className="sched-list">
             {autos.map((s, i) => {
+              const elapsed = (Date.now() - autosAt.current) / 1000;
+              const remaining = s.next_seconds != null ? s.next_seconds - elapsed : null;
               const right =
-                s.status === "active" ? (s.next_seconds != null ? nextLabel(s.next_seconds) : s.cadence) : s.status === "failing" ? "failing" : "paused";
+                s.status === "active" ? (remaining != null ? nextLabel(remaining) : s.cadence) : s.status === "failing" ? "failing" : "paused";
               return (
                 <div className={cn("sched-row", s.status === "paused" && "off")} key={s.name + i}>
                   <span className="sc-dot" style={{ background: DCOLOR[s.domain] || "var(--fg)" }} title={s.domain} />
@@ -644,8 +655,15 @@ export default function ControlCenterPage() {
               <div
                 className="task"
                 key={t.id}
-                onMouseEnter={() => setHoverDom(t.dom)}
-                onMouseLeave={() => setHoverDom(null)}
+                onMouseEnter={(e) => {
+                  setHoverDom(t.dom);
+                  const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  setWt({ task: t, x: r.left - 12, y: r.top });
+                }}
+                onMouseLeave={() => {
+                  setHoverDom(null);
+                  setWt(null);
+                }}
                 onClick={() => openTask(t)}
               >
                 <span className="lstripe" style={{ background: DCOLOR[t.dom] }} />
@@ -680,6 +698,39 @@ export default function ControlCenterPage() {
           )}
         </div>
       </section>
+
+      {/* Current Work hover tooltip */}
+      {wt && (
+        <div
+          className="tip worktip"
+          style={{ left: wt.x, top: wt.y, opacity: 1, transform: "translateX(-100%)" }}
+        >
+          <div className="wt-h">
+            <span className="wt-t">{wt.task.goal}</span>
+            <span className={cn("st", wt.task.state)}>
+              {wt.task.state === "err"
+                ? "failed"
+                : wt.task.state === "done"
+                  ? "done"
+                  : wt.task.state === "idle"
+                    ? "idle"
+                    : wt.task.pct != null
+                      ? `${wt.task.pct}%`
+                      : "live"}
+            </span>
+          </div>
+          <div className="wt-now">
+            <span className="lab">Now</span>
+            <span className="val">{wt.task.now}</span>
+          </div>
+          <div className="wt-foot">
+            <span>
+              {wt.task.kind} · {wt.task.dom}
+            </span>
+            <span>updated {agoLabel(wt.task.ago)} ago</span>
+          </div>
+        </div>
+      )}
 
       {/* Attention popover */}
       {alertsOpen && (
@@ -740,6 +791,18 @@ export default function ControlCenterPage() {
                 {m.text}
               </div>
             ))}
+            {chatBusy && (
+              <div className="msg agent thinking">
+                <div className="who">
+                  <span className="o" />JARVIS
+                </div>
+                <span className="dots">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+              </div>
+            )}
           </div>
           <div className="ch-in">
             <textarea
@@ -754,7 +817,7 @@ export default function ControlCenterPage() {
                 }
               }}
             />
-            <button className="send" aria-label="Send" onClick={sendChat}>
+            <button className="send" aria-label="Send" onClick={sendChat} disabled={chatBusy}>
               <Send size={17} />
             </button>
           </div>
