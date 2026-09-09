@@ -375,6 +375,10 @@ export const api = {
         body: JSON.stringify({ text }),
       },
     ),
+  getControlWorkHistory: (id: string) =>
+    fetchJSON<ControlWorkHistoryResponse>(
+      `/api/control/work/${encodeURIComponent(id)}/history`,
+    ),
   getPcBridgeStatus: () =>
     fetchJSON<PcBridgeStatus>("/api/control/bridge/status"),
   /**
@@ -2139,6 +2143,21 @@ export interface ControlKnowledgeGraphResponse {
 
 export interface ControlWorkChatResponse {
   reply: string;
+}
+
+export interface ControlWorkHistoryMessage {
+  role: "user" | "assistant" | "tool";
+  text?: string;
+  tool_calls?: { name: string; args: string }[];
+  tool_name?: string;
+  ts?: number;
+}
+
+export interface ControlWorkHistoryResponse {
+  available: boolean;
+  session_id: string | null;
+  messages: ControlWorkHistoryMessage[];
+  total?: number;
 }
 
 export interface StatusResponse {

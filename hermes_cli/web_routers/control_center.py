@@ -1241,36 +1241,121 @@ def _cron_next_seconds(expr: str, now_dt: datetime) -> Optional[int]:
     return None
 
 
+def _job_domain(name: str) -> str:
+    """Map a real cron-job name to a Control-Center domain."""
+    l = (name or "").lower()
+    if l.startswith("aidp") or "krendora" in l or "instagram" in l or "dsers" in l or "autods" in l:
+        return "krendora"
+    if any(k in l for k in (
+        "tft", "flare", "tm-", "tm ", "axs", "stubhub", "scrape", "ticket",
+        "presale", "broker", "copilot", "vivid", "seatgeek", "tickpick", "gametime",
+    )):
+        return "ticketflipping"
+    if any(k in l for k in (
+        "ledger", "budget", "finance", "grandma", "i131", "erequest", "immigr",
+        "home", "call-", "reminder", "timer", "followup", "personal",
+    )):
+        return "personal"
+    return "system"
+
+
+def _pretty_cron(expr: str) -> str:
+    """Best-effort human cadence for a 5-field cron; falls back to the raw expr."""
+    parts = (expr or "").split()
+    if len(parts) != 5:
+        return expr or ""
+    mi, ho, dom, mon, dow = parts
+    try:
+        if mi.startswith("*/") and ho == "*" and dom == "*" and mon == "*" and dow == "*":
+            return f"every {int(mi[2:])}m"
+        if ho.startswith("*/") and mi.lstrip("-").isdigit() and dom == "*" and mon == "*" and dow == "*":
+            return f"every {int(ho[2:])}h"
+        if mi.isdigit() and ho.isdigit() and dom == "*" and mon == "*":
+            hh = f"{int(ho):02d}:{int(mi):02d}"
+            if dow == "*":
+                return f"daily {hh}"
+            return f"{hh} · days {dow}"
+        if mi.isdigit() and "," in ho and dom == "*" and mon == "*" and dow == "*":
+            return f"{ho.replace(',', ' & ')}h daily"
+    except ValueError:
+        pass
+    return expr
+
+
+def _schedule_cadence(job: Dict[str, Any]) -> str:
+    sched = job.get("schedule") or {}
+    kind = sched.get("kind")
+    if kind == "interval":
+        m = sched.get("minutes")
+        if isinstance(m, int) and m > 0:
+            if m % 60 == 0:
+                return f"every {m // 60}h"
+            return f"every {m}m"
+    if kind == "cron":
+        return _pretty_cron(sched.get("expr") or job.get("schedule_display") or "")
+    if kind == "once":
+        return job.get("schedule_display") or "one-time"
+    return job.get("schedule_display") or (sched.get("display") if isinstance(sched, dict) else "") or ""
+
+
 def _automations() -> Dict[str, Any]:
-    """Scheduled tasks for non-system projects, from ~/.hermes/jarvis/automations.json.
-    Each item: {name, domain, cron|cadence, host?, status:active|paused|failing}."""
+    """Real scheduled tasks from Hermes' own cron store (cron.jobs.list_jobs) —
+    the same jobs `hermes cron list` shows. Recurring jobs + still-upcoming
+    one-shots; finished one-shots are dropped. status: active|paused|failing."""
     cached = _cached("automations")
     if cached is not None:
         return cached
     out: Dict[str, Any] = {"available": False, "items": [], "active": 0, "failing": 0}
     try:
-        raw = json.loads(_AUTOMATIONS_PATH.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+        from cron.jobs import list_jobs
+    except Exception:  # noqa: BLE001 - cron module unavailable → empty panel
         return _set_cached("automations", out, _AUTOMATIONS_CACHE_TTL_S)
-    items = raw.get("automations", raw) if isinstance(raw, dict) else raw
-    now_dt = datetime.now()
-    result = []
-    for it in items or []:
-        if it.get("domain") == "system":
+    try:
+        jobs = list_jobs(include_disabled=True)
+    except Exception:  # noqa: BLE001
+        return _set_cached("automations", out, _AUTOMATIONS_CACHE_TTL_S)
+    now_dt = datetime.now(timezone.utc)
+    result: List[Dict[str, Any]] = []
+    for job in jobs or []:
+        sched = job.get("schedule") or {}
+        kind = sched.get("kind")
+        state = (job.get("state") or "").lower()
+        next_run = job.get("next_run_at")
+        next_secs: Optional[int] = None
+        if next_run:
+            try:
+                nd = datetime.fromisoformat(str(next_run).replace("Z", "+00:00"))
+                if nd.tzinfo is None:
+                    nd = nd.replace(tzinfo=timezone.utc)
+                next_secs = int((nd - now_dt).total_seconds())
+            except ValueError:
+                next_secs = None
+        # Drop finished / expired one-shots; keep recurring + upcoming one-shots.
+        if kind == "once":
+            if state in ("completed", "cancelled", "failed") or next_secs is None or next_secs < -60:
+                continue
+        elif state in ("completed", "cancelled"):
             continue
-        status = it.get("status", "active")
-        entry = {
-            "name": it.get("name", "automation"),
-            "domain": it.get("domain", "personal"),
-            "cadence": it.get("cadence") or it.get("cron") or "",
+        enabled = job.get("enabled", True)
+        paused = bool(job.get("paused_at")) or not enabled
+        failing = (job.get("last_status") == "error") or (int(job.get("failure_streak") or 0) > 0)
+        status = "paused" if paused else ("failing" if failing else "active")
+        name = job.get("name") or "automation"
+        entry: Dict[str, Any] = {
+            "name": name,
+            "domain": _job_domain(name),
+            "cadence": _schedule_cadence(job),
             "status": status,
-            "host": it.get("host"),
         }
-        if status == "active" and it.get("cron"):
-            secs = _cron_next_seconds(it["cron"], now_dt)
-            if secs is not None:
-                entry["next_seconds"] = secs
+        if status != "paused" and next_secs is not None and next_secs >= -60:
+            entry["next_seconds"] = max(0, next_secs)
+        if job.get("last_status"):
+            entry["last_status"] = job.get("last_status")
+        if job.get("last_run_at"):
+            entry["last_run_at"] = job.get("last_run_at")
         result.append(entry)
+    rank = {"active": 0, "failing": 1, "paused": 2}
+    result.sort(key=lambda e: (rank.get(e["status"], 9), e.get("next_seconds", 10 ** 12)))
     out["available"] = True
     out["items"] = result
     out["active"] = sum(1 for r in result if r["status"] == "active")
@@ -2220,10 +2305,34 @@ async def control_work_chat(work_id: str, payload: Dict[str, Any] = Body(...)):
     if not text:
         raise HTTPException(status_code=400, detail="empty message")
     title = str(payload.get("title") or "").strip()
+    # Ground the reply in the item's real conversation (last few turns) so
+    # "keep chatting" is informed by what the user is looking at.
+    transcript = ""
+    try:
+        tail = (_work_history(work_id).get("messages") or [])[-8:]
+        lines: List[str] = []
+        for m in tail:
+            role = m.get("role")
+            if role == "tool":
+                lines.append(f"[tool {m.get('tool_name')}] {(m.get('text') or '')[:180]}")
+            elif role == "user":
+                if m.get("text"):
+                    lines.append(f"User: {m['text'][:220]}")
+            else:
+                if m.get("text"):
+                    lines.append(f"JARVIS: {m['text'][:220]}")
+                for c in m.get("tool_calls") or []:
+                    lines.append(f"[calls {c.get('name')}] {(c.get('args') or '')[:120]}")
+        if lines:
+            transcript = "\nRecent activity on this item:\n" + "\n".join(lines) + "\n"
+    except Exception:  # noqa: BLE001 - grounding is best-effort
+        transcript = ""
     ctx = f"[Discussing a Control Center work item (id {work_id}"
     if title:
         ctx += f', "{title}"'
-    ctx += "). Answer briefly and directly.]\n"
+    ctx += "). Answer briefly and directly"
+    ctx += ", grounded in the activity below.]\n" if transcript else ".]\n"
+    ctx += transcript
     conv = "work-" + work_id
     try:
         result = await run_in_threadpool(_run_jarvis_turn, ctx + text, conv)
@@ -2232,3 +2341,142 @@ async def control_work_chat(work_id: str, payload: Dict[str, Any] = Body(...)):
     except Exception as exc:  # noqa: BLE001 - surface a clean error to the UI
         raise HTTPException(status_code=502, detail=str(exc))
     return {"reply": result.get("reply") or result.get("text") or ""}
+
+
+# --- Full conversation (messages + tool calls) for a Current Work item -------
+_WORK_HISTORY_MAX_MSGS = 140
+_WORK_HISTORY_MAX_CHARS = 1400
+
+
+def _cc_shorten(s: Any, n: int) -> str:
+    s = s if isinstance(s, str) else str(s)
+    s = s.strip()
+    return s if len(s) <= n else s[: n - 1].rstrip() + "…"
+
+
+def _parse_tool_calls(tc: Any) -> List[Dict[str, str]]:
+    """Normalize a stored ``tool_calls`` JSON blob to [{name, args}]."""
+    try:
+        arr = json.loads(tc)
+    except (ValueError, TypeError):
+        return []
+    calls: List[Dict[str, str]] = []
+    for c in arr if isinstance(arr, list) else []:
+        if not isinstance(c, dict):
+            continue
+        fn = c.get("function") or {}
+        name = fn.get("name") or c.get("name") or "tool"
+        args = fn.get("arguments")
+        if args is None:
+            args = c.get("arguments") or ""
+        if isinstance(args, (dict, list)):
+            args = json.dumps(args, ensure_ascii=False)
+        calls.append({"name": str(name), "args": _cc_shorten(" ".join(str(args).split()), 260)})
+    return calls
+
+
+def _tool_result_preview(content: str) -> str:
+    """Tool results are usually JSON payloads — surface the useful part."""
+    s = (content or "").strip()
+    if s[:1] in ("{", "["):
+        try:
+            j = json.loads(s)
+        except ValueError:
+            return s
+        if isinstance(j, dict):
+            for k in ("output", "content", "result", "text", "stdout", "error", "message", "status"):
+                v = j.get(k)
+                if v not in (None, "", [], {}):
+                    return v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)
+            return json.dumps(j, ensure_ascii=False)
+        return json.dumps(j, ensure_ascii=False)
+    return s
+
+
+def _work_history(work_id: str) -> Dict[str, Any]:
+    """Full stored conversation for a Current Work item: user/assistant text and
+    the tool calls + tool results in between, read-only from state.db."""
+    out: Dict[str, Any] = {"available": False, "session_id": None, "messages": []}
+    wid = (work_id or "").strip()
+    if not wid:
+        return out
+    try:
+        uri = f"file:{_STATE_DB_PATH}?mode=ro"
+        conn = sqlite3.connect(uri, uri=True, timeout=2.0)
+        conn.row_factory = sqlite3.Row
+    except Exception:  # noqa: BLE001
+        return out
+    try:
+        sid: Optional[str] = None
+        # Resolve the session id: exact, then prefix (cron/truncated ids), then
+        # substring — Current Work ids come from sessions (full) and delegations
+        # (truncated), and cron sessions embed the job id.
+        for q, arg in (
+            ("SELECT id FROM sessions WHERE id = ? LIMIT 1", wid),
+            ("SELECT id FROM sessions WHERE id LIKE ? ORDER BY last_activity_at DESC LIMIT 1", wid + "%"),
+            ("SELECT id FROM sessions WHERE id LIKE ? ORDER BY last_activity_at DESC LIMIT 1", "%" + wid + "%"),
+        ):
+            try:
+                r = conn.execute(q, (arg,)).fetchone()
+            except sqlite3.Error:
+                r = None
+            if r:
+                sid = r["id"]
+                break
+        if not sid:
+            try:
+                r = conn.execute(
+                    "SELECT session_id AS id FROM messages "
+                    "WHERE session_id = ? OR session_id LIKE ? "
+                    "ORDER BY timestamp DESC LIMIT 1",
+                    (wid, wid + "%"),
+                ).fetchone()
+                if r:
+                    sid = r["id"]
+            except sqlite3.Error:
+                pass
+        if not sid:
+            conn.close()
+            return out
+        rows = conn.execute(
+            "SELECT role, content, tool_calls, tool_name, timestamp FROM messages "
+            "WHERE session_id = ? AND COALESCE(active, 1) = 1 "
+            "ORDER BY timestamp ASC",
+            (sid,),
+        ).fetchall()
+    except sqlite3.Error:
+        conn.close()
+        return out
+    conn.close()
+
+    msgs: List[Dict[str, Any]] = []
+    for r in rows:
+        role = r["role"] or "assistant"
+        content = (r["content"] or "").strip()
+        entry: Dict[str, Any] = {"role": role, "ts": r["timestamp"]}
+        if role == "tool":
+            entry["tool_name"] = r["tool_name"] or "tool"
+            preview = _tool_result_preview(content)
+            entry["text"] = _cc_shorten(preview, _WORK_HISTORY_MAX_CHARS)
+        else:
+            if content:
+                entry["text"] = _cc_shorten(content, _WORK_HISTORY_MAX_CHARS)
+            if r["tool_calls"]:
+                calls = _parse_tool_calls(r["tool_calls"])
+                if calls:
+                    entry["tool_calls"] = calls
+            if not entry.get("text") and not entry.get("tool_calls"):
+                continue  # empty assistant frame with nothing to show
+        msgs.append(entry)
+    if len(msgs) > _WORK_HISTORY_MAX_MSGS:
+        msgs = msgs[-_WORK_HISTORY_MAX_MSGS:]
+    out["available"] = True
+    out["session_id"] = sid
+    out["messages"] = msgs
+    out["total"] = len(rows)
+    return out
+
+
+@router.get("/api/control/work/{work_id}/history")
+async def control_work_history(work_id: str):
+    return await run_in_threadpool(_work_history, work_id)

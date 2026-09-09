@@ -4,6 +4,7 @@ import {
   Bell,
   Bot,
   CalendarClock,
+  CornerDownRight,
   Cpu,
   Menu,
   Mic,
@@ -12,6 +13,7 @@ import {
   Send,
   SquareTerminal,
   Waypoints,
+  Wrench,
   X,
   Zap,
 } from "lucide-react";
@@ -75,6 +77,11 @@ interface Task {
   ago: number;
   now: string;
 }
+
+type ChatMsg =
+  | { r: "you" | "a"; text: string }
+  | { r: "call"; name: string; args: string }
+  | { r: "tool"; name: string; text: string };
 
 const DAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const MONS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -148,9 +155,11 @@ export default function ControlCenterPage() {
   const [selTask, setSelTask] = useState<Task | null>(null);
   const [wt, setWt] = useState<{ task: Task; x: number; y: number } | null>(null);
   const autosAt = useRef(Date.now());
-  const [chat, setChat] = useState<{ r: "a" | "you"; text: string }[]>([]);
+  const [chat, setChat] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
+  const [histLoading, setHistLoading] = useState(false);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const cpuHist = useRef<number[]>([]);
   const sparkRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -360,11 +369,35 @@ export default function ControlCenterPage() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  function openTask(t: Task) {
+  // Keep the conversation pinned to the latest message.
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [chat, chatBusy, histLoading]);
+
+  async function openTask(t: Task) {
     setSelTask(t);
-    setChat([
-      { r: "a", text: `On “${t.goal}” — ${t.now}.` },
-    ]);
+    setChat([]);
+    setHistLoading(true);
+    try {
+      const h = await api.getControlWorkHistory(t.id);
+      const msgs: ChatMsg[] = [];
+      for (const m of h.messages || []) {
+        if (m.role === "user") {
+          if (m.text) msgs.push({ r: "you", text: m.text });
+        } else if (m.role === "tool") {
+          msgs.push({ r: "tool", name: m.tool_name || "tool", text: m.text || "" });
+        } else {
+          if (m.text) msgs.push({ r: "a", text: m.text });
+          for (const c of m.tool_calls || []) msgs.push({ r: "call", name: c.name, args: c.args });
+        }
+      }
+      setChat(msgs.length ? msgs : [{ r: "a", text: `On “${t.goal}” — ${t.now}.` }]);
+    } catch {
+      setChat([{ r: "a", text: `On “${t.goal}” — ${t.now}.` }]);
+    } finally {
+      setHistLoading(false);
+    }
   }
   async function sendChat() {
     const v = chatInput.trim();
@@ -784,13 +817,45 @@ export default function ControlCenterPage() {
               <X size={14} />
             </button>
           </div>
-          <div className="ch-msgs">
-            {chat.map((m, i) => (
-              <div className={cn("msg", m.r === "a" ? "agent" : "you")} key={i}>
-                <div className="who">{m.r === "a" ? <><span className="o" />JARVIS</> : "You"}</div>
-                {m.text}
+          <div className="ch-msgs" ref={chatScrollRef}>
+            {histLoading && chat.length === 0 && (
+              <div className="ch-loading">
+                <span className="dots">
+                  <i />
+                  <i />
+                  <i />
+                </span>
+                loading conversation…
               </div>
-            ))}
+            )}
+            {chat.map((m, i) => {
+              if (m.r === "call") {
+                return (
+                  <div className="toolcall" key={i}>
+                    <Wrench className="tc-ico" size={12} />
+                    <span className="tc-name">{m.name}</span>
+                    {m.args && <span className="tc-args">{m.args}</span>}
+                  </div>
+                );
+              }
+              if (m.r === "tool") {
+                return (
+                  <div className="toolresult" key={i}>
+                    <div className="tr-h">
+                      <CornerDownRight size={11} />
+                      {m.name}
+                    </div>
+                    <div className="tr-body">{m.text}</div>
+                  </div>
+                );
+              }
+              return (
+                <div className={cn("msg", m.r === "a" ? "agent" : "you")} key={i}>
+                  <div className="who">{m.r === "a" ? <><span className="o" />JARVIS</> : "You"}</div>
+                  {m.text}
+                </div>
+              );
+            })}
             {chatBusy && (
               <div className="msg agent thinking">
                 <div className="who">
