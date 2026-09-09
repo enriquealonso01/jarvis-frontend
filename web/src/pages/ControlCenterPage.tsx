@@ -13,7 +13,6 @@ import {
   RefreshCw,
   Send,
   SquareTerminal,
-  Waypoints,
   Wrench,
   X,
   Zap,
@@ -148,7 +147,8 @@ export default function ControlCenterPage() {
     graph: null,
     voice: null,
   });
-  const [mode, setMode] = useState<"map" | "voice">("map");
+  // The map is always shown; the voice orb now lives in its own dock (bottom-right).
+  const [mode] = useState<"map" | "voice">("map");
   const [activeDom, setActiveDom] = useState("all");
   const [hoverDom, setHoverDom] = useState<string | null>(null);
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -368,9 +368,7 @@ export default function ControlCenterPage() {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
-      if (k === "v") setMode("voice");
-      else if (k === "m") setMode("map");
-      else if (k === "a") setAlertsOpen((o) => !o);
+      if (k === "a") setAlertsOpen((o) => !o);
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -443,13 +441,15 @@ export default function ControlCenterPage() {
         onOpenRepo={() => {}}
       />
 
-      {/* Orb (real voice console) */}
-      <div className="orbwrap">
-        <VoiceConsole gatewayRunning={gatewayRunning} workCount={liveCount} />
+      {/* Decorative centre node — the heart of the knowledge map. Pure UI, no
+          interaction, so drag-to-orbit works even over the centre. */}
+      <div className="mapcenter" aria-hidden="true">
+        <span className="mc-ring" />
+        <span className="mc-core">JARVIS</span>
       </div>
       <div className="stage-cap">
         <div className="phase">
-          JARVIS · <b>{mode === "voice" ? "voice" : "knowledge map"}</b>
+          JARVIS · <b>knowledge map</b>
         </div>
         <div className="hint">{mapHint}</div>
       </div>
@@ -472,16 +472,6 @@ export default function ControlCenterPage() {
           <span>
             {DAYS[now.getDay()]} {p2(now.getDate())} {MONS[now.getMonth()]}
           </span>
-        </div>
-        <div className="seg">
-          <button className={mode === "map" ? "on" : ""} onClick={() => setMode("map")}>
-            <Waypoints size={13} />
-            Map
-          </button>
-          <button className={mode === "voice" ? "on" : ""} onClick={() => setMode("voice")}>
-            <Mic size={13} />
-            Voice
-          </button>
         </div>
         <span className={cn("pill", gatewayRunning ? "ok" : "bad")}>
           <span className="d pulse" />
@@ -761,6 +751,11 @@ export default function ControlCenterPage() {
             <div style={{ padding: 22, textAlign: "center", color: "var(--fg-faint)", fontSize: 12 }}>No work in this domain.</div>
           )}
         </div>
+      </section>
+
+      {/* Voice dock — the talking orb, under Current Work (bottom-right) */}
+      <section className="voicedock glass">
+        <VoiceConsole gatewayRunning={gatewayRunning} workCount={liveCount} />
       </section>
 
       {/* Current Work hover tooltip */}
