@@ -792,9 +792,10 @@ export function VoiceConsole({
         )}
       </div>
 
-      {/* Live transcript — floats over the orb in full mode; sits to the LEFT of
-          the orb in bare (dock) mode so it never covers the orb. */}
-      {showTranscript && (
+      {/* Live transcript — floats over the orb in full mode; in bare (dock) mode
+          it's a PERSISTENT panel to the LEFT of the orb (always visible, fills
+          in real time as you talk) so it never covers the orb. */}
+      {(bare || showTranscript) && (
         <div
           className={cn(
             "z-20 flex flex-col overflow-hidden",
