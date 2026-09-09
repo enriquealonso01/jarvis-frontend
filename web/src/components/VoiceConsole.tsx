@@ -790,46 +790,19 @@ export function VoiceConsole({
             <X className="h-3 w-3 opacity-70" />
           </button>
         )}
-        {/* Bare mode: minimal controls (mute + end) */}
-        {bare && (
-          <div className="absolute right-[4%] top-[3%] z-20 flex items-center gap-1">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMuted((m) => !m);
-              }}
-              aria-label={muted ? "Unmute JARVIS voice" : "Mute JARVIS voice"}
-              title={muted ? "Voice output off — tap to unmute" : "Mute voice (text only)"}
-              className={cn(
-                "pointer-events-auto rounded-md p-1 outline-none transition",
-                muted ? "text-amber-300 hover:text-amber-200" : "text-muted-foreground hover:text-cyan-200",
-              )}
-            >
-              {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
-            </button>
-            {(active || lines.length > 0) && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  endAndClear();
-                }}
-                aria-label="End and clear conversation"
-                title="End & clear"
-                className="pointer-events-auto rounded-md p-1 text-muted-foreground outline-none transition hover:text-rose-300"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* Floating live-transcript panel — full chrome only (bare mode uses the
-          dedicated, toggleable Voice-transcript panel instead) */}
-      {!bare && showTranscript && (
-        <div className="absolute inset-x-2 bottom-2 z-20 flex max-h-[46%] flex-col rounded-2xl border border-cyan-300/20 bg-background/85 shadow-[0_0_40px_rgba(34,211,238,0.10)] backdrop-blur sm:inset-x-auto sm:bottom-auto sm:right-3 sm:top-3 sm:w-60 lg:max-h-[62%] lg:w-60">
+      {/* Live transcript — floats over the orb in full mode; sits to the LEFT of
+          the orb in bare (dock) mode so it never covers the orb. */}
+      {showTranscript && (
+        <div
+          className={cn(
+            "z-20 flex flex-col overflow-hidden",
+            bare
+              ? "vc-live-left"
+              : "absolute inset-x-2 bottom-2 max-h-[46%] rounded-2xl border border-cyan-300/20 bg-background/85 shadow-[0_0_40px_rgba(34,211,238,0.10)] backdrop-blur sm:inset-x-auto sm:bottom-auto sm:right-3 sm:top-3 sm:w-60 lg:max-h-[62%] lg:w-60",
+          )}
+        >
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border/40 px-3 py-1.5">
             <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               <span
