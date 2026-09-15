@@ -1197,50 +1197,6 @@ async def control_vitals():
     return _vitals()
 
 
-def _cron_field_match(field: str, value: int, span_max: int) -> bool:
-    if field == "*":
-        return True
-    for part in field.split(","):
-        part = part.strip()
-        try:
-            if part.startswith("*/"):
-                step = int(part[2:])
-                if step and value % step == 0:
-                    return True
-            elif "-" in part:
-                a, b = part.split("-", 1)
-                if int(a) <= value <= int(b):
-                    return True
-            elif part.isdigit():
-                if int(part) == value:
-                    return True
-        except ValueError:
-            continue
-    return False
-
-
-def _cron_next_seconds(expr: str, now_dt: datetime) -> Optional[int]:
-    """Seconds until the next fire of a 5-field cron (minute hour dom mon dow).
-    Brute-forces minute steps up to 8 days; fine for a cached endpoint."""
-    fields = expr.split()
-    if len(fields) != 5:
-        return None
-    mi, ho, dom, mon, dow = fields
-    t = now_dt.replace(second=0, microsecond=0) + _timedelta(minutes=1)
-    for _ in range(0, 11521):
-        cron_dow = (t.weekday() + 1) % 7  # cron: 0=Sun..6=Sat
-        if (
-            _cron_field_match(mi, t.minute, 59)
-            and _cron_field_match(ho, t.hour, 23)
-            and _cron_field_match(dom, t.day, 31)
-            and _cron_field_match(mon, t.month, 12)
-            and (_cron_field_match(dow, cron_dow, 6) or _cron_field_match(dow, 7 if cron_dow == 0 else cron_dow, 7))
-        ):
-            return int((t - now_dt).total_seconds())
-        t += _timedelta(minutes=1)
-    return None
-
-
 def _job_domain(name: str) -> str:
     """Map a real cron-job name to a Control-Center domain."""
     l = (name or "").lower()
