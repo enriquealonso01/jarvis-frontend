@@ -141,19 +141,6 @@ PROJECT_SUMMARIES = {
     "account-studio": "Account tooling workspace with Supabase/local sidecar architecture.",
 }
 
-INTERESTING_MARKERS = [
-    "README.md",
-    "CLAUDE.md",
-    "AGENTS.md",
-    "package.json",
-    "pyproject.toml",
-    "manage.py",
-    "vite.config.ts",
-    "next.config.ts",
-    "next.config.mjs",
-    "Dockerfile",
-]
-
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
