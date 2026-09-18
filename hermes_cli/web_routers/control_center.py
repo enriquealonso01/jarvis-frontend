@@ -2282,7 +2282,12 @@ async def control_dispatch_board():
                 "open_count": sum(1 for i in items if i["status"] in ("open", "classified", "in_progress")),
                 "items": items,
             })
-        threads.sort(key=lambda t: (t["items"][0]["ago_seconds"] if t["items"] else 1_000_000))
+        # ago_seconds is None for rows with a null created_at; sort keys must
+        # all be ints or the comparison itself raises TypeError (which the
+        # handler below would swallow, blanking the whole board).
+        threads.sort(key=lambda t: (t["items"][0]["ago_seconds"]
+                                    if t["items"] and t["items"][0]["ago_seconds"] is not None
+                                    else 1_000_000))
         con.close()
         out["threads"] = threads
         out["available"] = True
