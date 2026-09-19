@@ -1104,7 +1104,6 @@ async def control_activity():
 # ever reaches the browser — only computed numbers.
 # ===========================================================================
 import shutil as _shutil
-from datetime import timedelta as _timedelta
 
 _VITALS_CACHE_TTL_S = 2.0
 _AUTOMATIONS_CACHE_TTL_S = 30.0
@@ -1733,7 +1732,7 @@ def _voice_job_status_line() -> str:
         parts.append(f"Still working on: {names}")
     if done:
         parts.append(f"{len(done)} task(s) finished" + (
-            f" and sent to your WhatsApp" if any(j.get("delivered") for j in done) else ""))
+            " and sent to your WhatsApp" if any(j.get("delivered") for j in done) else ""))
     if errored:
         parts.append(f"{len(errored)} ran into trouble")
     return ("Sir, " + " — ".join(parts) + ".") if parts else \

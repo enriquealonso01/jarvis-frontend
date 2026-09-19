@@ -51,7 +51,10 @@ from hermes_cli._subprocess_compat import windows_detach_flags, windows_hide_fla
 from hermes_cli.install_identity import get_install_id as _shared_get_install_id
 import urllib.request
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+
+if TYPE_CHECKING:
+    import uvicorn
 
 import yaml
 
@@ -83,7 +86,6 @@ from hermes_cli.config import (
     check_config_version,
     detect_install_method,
     format_docker_update_message,
-    is_nix_install_method,
     recommended_update_command_for_method,
     redact_key,
     write_platform_config_field,
@@ -99,7 +101,6 @@ from gateway.status import (
     derive_gateway_busy,
     derive_gateway_drainable,
     get_running_pid_cached,
-    get_running_pid,
     get_runtime_status_running_pid,
     normalize_updated_at,
     parse_active_agents,
@@ -116,7 +117,6 @@ try:
     from fastapi.middleware.cors import CORSMiddleware
     from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
     from fastapi.staticfiles import StaticFiles
-    from pydantic import BaseModel, SecretStr, field_validator
     from starlette.concurrency import run_in_threadpool
 except ImportError:
     # First try lazy-installing the dashboard extras. Only the user actually
@@ -132,7 +132,6 @@ except ImportError:
         from fastapi.middleware.cors import CORSMiddleware
         from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
         from fastapi.staticfiles import StaticFiles
-        from pydantic import BaseModel, SecretStr, field_validator
         from starlette.concurrency import run_in_threadpool
     except Exception:
         raise SystemExit(
@@ -3319,8 +3318,6 @@ async def fs_default_cwd():
 # gate + path hardening as /api/fs). Logic lives in ``hermes_cli.web_git``;
 # these are thin, executor-offloaded wrappers (git/gh can block).
 # ---------------------------------------------------------------------------
-
-from hermes_cli import web_git as _web_git  # noqa: E402
 
 
 async def _git_op(fn, *args):
@@ -13914,7 +13911,7 @@ from hermes_cli.web_routers.mcp import (  # noqa: E402,F401 — legacy re-export
 
 _MCP_DASHBOARD_OAUTH_TTL = 15 * 60
 _MAX_PENDING_MCP_OAUTH_FLOWS = 8
-_mcp_oauth_flows: dict[str, "DashboardOAuthFlow"] = {}
+_mcp_oauth_flows: dict[str, object] = {}
 _mcp_oauth_flows_lock = threading.Lock()
 _mcp_oauth_transactions: dict[tuple[str, str], threading.Lock] = {}
 _mcp_oauth_transactions_lock = threading.Lock()
